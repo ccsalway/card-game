@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="static/styles.css">
+    <title>Document</title>
+    <script type="module">
+        import * as eth from "./modules/ether.js";
+
+        let btnConnect = document.querySelector('.connect');
+        let divAddress = document.querySelector('.address');
+        let divPlayers = document.querySelector('.players');
+        let frmAddPlayer = document.getElementById('addPlayer');
+
+        let listPlayers = async () => {
+            divPlayers.innerHTML = '';
+            if (eth.provider.selectedAddress) {
+                fetch(`http://127.0.0.1:8090/players?owner=${eth.provider.selectedAddress}`)
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error(`Response error: ${response.status}`);
+                        }
+                        response.json().then((data) => {
+                            data.forEach(player => {
+                                divPlayers.innerHTML += `<p>${player.id}</p>`
+                            })
+                        });
+                    })
+                    .catch(console.error);
+            }
+        };
+
+        let addPlayer = async (id) => {
+            fetch(`http://127.0.0.1:8090/players/add?id=${id}&owner=${eth.provider.selectedAddress}`)
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`Response error: ${response.status}`);
+                    }
+                    listPlayers();
+                }).catch(console.error);
+        };
+
+        let accountsChanged = async (accounts) => {
+            btnConnect.style.display = eth.provider.selectedAddress ? 'none' : '';
+            divAddress.innerHTML = eth.provider.selectedAddress || '';
+            listPlayers();
+        };
+
+        eth.provider.on('accountsChanged', accountsChanged);
+
+        btnConnect.addEventListener("click", async (event) => {
+            try {
+                if (eth.provider.selectedAddress === null)
+                    await eth.connect();
+                else  // already connected
+                    accountsChanged();
+            } catch (error) {
+                console.error(`ERROR: ${error.message} (${error.code})`);
+            }
+        });
+
+        frmAddPlayer.addEventListener("submit", (event) => {
+            event.preventDefault();
+            addPlayer(event.target.elements.id.value);
+            event.target.reset();
+        });
+
+        if (eth.provider.selectedAddress !== null) {
+            accountsChanged();
+        }
+    </script>
+</head>
+
+<body>
+    <div class="wrapper header">
+        <div class="address"></div>
+        <button class="connect">Connect</button>
+    </div>
+    <div>
+        <form id="addPlayer" method="POST">
+            <input type="text" name="id" placeholder="ID">
+            <button type="submit">Add</button>
+        </form>
+        <div class="players"></div>
+    </div>
+</body>
+
+</html>
